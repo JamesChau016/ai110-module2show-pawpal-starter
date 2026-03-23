@@ -7,6 +7,17 @@
 - Briefly describe your initial UML design.
 - What classes did you include, and what responsibilities did you assign to each?
 
+- Design:
+    - Data layer: stores all details and information about the owner, pet, and task
+    - Constraint layer: defines any constraints like time and priorities
+    - Planning layer: ranks tasks, selects what fits, and orders them
+    - Output layer: produces the final scheduled items, records why tasks were selected or skipped
+- Classes: Owner, Pet, Tasks, Plan
+    - Owner: add pets, set constraints
+    - Pet: add tasks, add pets constraints
+    - Tasks: set time window, set priorities
+    - Plan: add tasks, plan date and time, show reasons
+
 **b. Design changes**
 
 - Did your design change during implementation?
