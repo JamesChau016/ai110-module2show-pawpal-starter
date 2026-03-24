@@ -214,6 +214,21 @@ class Plan:
 
 	def _build_schedule_items(self, pet: Pet, selected_tasks: list[Task]) -> list[dict[str, Any]]:
 		"""Build schedule rows from selected tasks."""
+		def sort_key(index_and_task: tuple[int, Task]) -> tuple[int, int, int]:
+			index, task = index_and_task
+			if not task.preferred_start or not task.preferred_end:
+				return (1, 0, index)
+			try:
+				start_minutes = _hhmm_to_minutes(task.preferred_start)
+				end_minutes = _hhmm_to_minutes(task.preferred_end)
+			except ValueError:
+				return (1, 0, index)
+			if start_minutes >= end_minutes:
+				return (1, 0, index)
+			return (0, start_minutes, index)
+
+		ordered_tasks = [task for _, task in sorted(enumerate(selected_tasks), key=sort_key)]
+
 		return [
 			{
 				"order": order,
@@ -224,7 +239,7 @@ class Plan:
 				"preferred_start": task.preferred_start,
 				"preferred_end": task.preferred_end,
 			}
-			for order, task in enumerate(selected_tasks, start=1)
+			for order, task in enumerate(ordered_tasks, start=1)
 		]
 
 	def _build_selected_reasons(self, selected_tasks: list[Task]) -> dict[str, str]:
@@ -245,10 +260,10 @@ class Plan:
 
 	def generate_daily_schedule(self, owner: Owner, pet: Pet) -> list[dict[str, Any]]:
 		"""Build a daily schedule for one pet based on ranking and time limits."""
-		ranked_tasks = self.rank_tasks(pet.get_tasks(), owner.preferences)
 		descending = self._is_descending_time_sort(owner)
-		time_sorted_tasks = self.sort_tasks_by_time(ranked_tasks, descending=descending)
-		selected_tasks = self.select_tasks(time_sorted_tasks, owner.daily_available_minutes)
+		time_sorted_tasks = self.sort_tasks_by_time(pet.get_tasks(), descending=descending)
+		ranked_tasks = self.rank_tasks(time_sorted_tasks, owner.preferences)
+		selected_tasks = self.select_tasks(ranked_tasks, owner.daily_available_minutes)
 
 		self.tasks = selected_tasks
 		self.total_minutes = sum(task.time_minutes for task in selected_tasks)

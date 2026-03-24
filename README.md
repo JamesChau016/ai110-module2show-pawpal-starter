@@ -53,6 +53,21 @@ New features include:
   - Daily schedule generation was split into smaller helper steps.
   - This improves readability and maintainability while preserving scheduling behavior.
 
+## Testing PawPal+
+
+Current tests focus on core scheduler behavior:
+
+- Sorting correctness: validates priority-first scheduling with chronological ordering when valid time windows are provided.
+- Recurrence logic: confirms completing daily and weekly tasks creates the next occurrence with the correct due date.
+- Conflict detection: verifies overlapping and duplicate time windows are flagged as warnings.
+- Filtering and state updates: checks completion-based filtering, pet-name filtering, and task completion state changes.
+
+Confidence level: 5 stars
+
+```bash
+python -m pytest
+```
+
 ## Getting started
 
 ### Setup

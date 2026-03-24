@@ -21,7 +21,7 @@ def test_adding_task_increases_pet_task_count() -> None:
 	assert len(pet.tasks) == initial_count + 1
 
 
-def test_generate_daily_schedule_sorts_by_shortest_time_by_default() -> None:
+def test_generate_daily_schedule_prioritizes_priority_over_time_sort() -> None:
 	owner = Owner(owner_id="o1", name="Alex", daily_available_minutes=60)
 	pet = Pet(pet_id="p1", name="Milo", species="dog", age_years=3)
 	owner.add_pet(pet)
@@ -33,7 +33,7 @@ def test_generate_daily_schedule_sorts_by_shortest_time_by_default() -> None:
 	plan = Plan(plan_id="plan-1", plan_date="2026-03-23", total_minutes=0)
 	schedule = plan.generate_daily_schedule(owner, pet)
 
-	assert [item["task_id"] for item in schedule] == ["t2", "t3"]
+	assert [item["task_id"] for item in schedule] == ["t1", "t3"]
 
 
 def test_generate_daily_schedule_supports_longest_first_time_sort() -> None:
@@ -54,6 +54,48 @@ def test_generate_daily_schedule_supports_longest_first_time_sort() -> None:
 	schedule = plan.generate_daily_schedule(owner, pet)
 
 	assert [item["task_id"] for item in schedule] == ["t1", "t3", "t2"]
+
+
+def test_generate_daily_schedule_uses_time_sort_as_tie_breaker() -> None:
+	owner = Owner(
+		owner_id="o1",
+		name="Alex",
+		daily_available_minutes=100,
+		preferences={"time_sort": "shortest_first"},
+	)
+	pet = Pet(pet_id="p1", name="Milo", species="dog", age_years=3)
+	owner.add_pet(pet)
+
+	pet.add_task(Task(task_id="t1", description="Task 1", time_minutes=30, frequency="daily", priority="medium"))
+	pet.add_task(Task(task_id="t2", description="Task 2", time_minutes=10, frequency="daily", priority="medium"))
+	pet.add_task(Task(task_id="t3", description="Task 3", time_minutes=20, frequency="daily", priority="medium"))
+
+	plan = Plan(plan_id="plan-1", plan_date="2026-03-23", total_minutes=0)
+	schedule = plan.generate_daily_schedule(owner, pet)
+
+	assert [item["task_id"] for item in schedule] == ["t2", "t3", "t1"]
+
+
+def test_generate_daily_schedule_returns_chronological_order_with_time_windows() -> None:
+	owner = Owner(owner_id="o1", name="Alex", daily_available_minutes=120)
+	pet = Pet(pet_id="p1", name="Milo", species="dog", age_years=3)
+	owner.add_pet(pet)
+
+	late_task = Task(task_id="t1", description="Late", time_minutes=20, frequency="daily", priority="high")
+	late_task.set_time_window("12:00", "12:30")
+	early_task = Task(task_id="t2", description="Early", time_minutes=20, frequency="daily", priority="medium")
+	early_task.set_time_window("09:00", "09:30")
+	mid_task = Task(task_id="t3", description="Mid", time_minutes=20, frequency="daily", priority="low")
+	mid_task.set_time_window("10:00", "10:30")
+
+	pet.add_task(late_task)
+	pet.add_task(early_task)
+	pet.add_task(mid_task)
+
+	plan = Plan(plan_id="plan-1", plan_date="2026-03-23", total_minutes=0)
+	schedule = plan.generate_daily_schedule(owner, pet)
+
+	assert [item["task_id"] for item in schedule] == ["t2", "t3", "t1"]
 
 
 def test_filter_tasks_by_completion_status() -> None:
@@ -163,3 +205,27 @@ def test_detect_conflicts_warns_for_different_pet_overlap() -> None:
 
 	assert len(warnings) == 1
 	assert "different pets" in warnings[0]
+
+
+def test_detect_conflicts_warns_for_duplicate_time_windows() -> None:
+	plan = Plan(plan_id="plan-1", plan_date="2026-03-23", total_minutes=0)
+	items = [
+		{
+			"pet_id": "p1",
+			"task_id": "t1",
+			"preferred_start": "11:00",
+			"preferred_end": "11:30",
+		},
+		{
+			"pet_id": "p1",
+			"task_id": "t2",
+			"preferred_start": "11:00",
+			"preferred_end": "11:30",
+		},
+	]
+
+	warnings = plan.detect_conflicts(items)
+
+	assert len(warnings) == 1
+	assert "t1" in warnings[0]
+	assert "t2" in warnings[0]

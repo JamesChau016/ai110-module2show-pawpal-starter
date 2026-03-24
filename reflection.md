@@ -35,6 +35,9 @@
 - What constraints does your scheduler consider (for example: time, priority, preferences)?
 - How did you decide which constraints mattered most?
 
+- My scheduler consider: time, priority, and preferences constraints
+- I decided that priority constraints matter most based on real life scenarios, e.g. if your pet is sick, you should prioritize taking it to the vet before walking another pet.
+
 **b. Tradeoffs**
 
 - Describe one tradeoff your scheduler makes.
