@@ -22,6 +22,37 @@ Your final app should:
 - Display the plan clearly (and ideally explain the reasoning)
 - Include tests for the most important scheduling behaviors
 
+## Smarter Scheduling
+
+New features include:
+
+- Time Sorting
+  - Tasks can be ordered by duration using owner preference `time_sort`.
+  - Supported values:
+    - `shortest_first` (default)
+    - `longest_first` (also supports `desc` and `descending`)
+
+- Task filtering utilities
+  - Filter by completion status (`completed=True` or `False`)
+  - Filter by pet name (case-insensitive)
+  - Useful for focused views such as "show only unfinished tasks for Luna"
+
+- Recurring task rollover on completion
+  - When a `daily` task is marked complete, a new task instance is automatically created for the next day.
+  - When a `weekly` task is marked complete, a new task instance is automatically created for the next week.
+  - New due dates are calculated with `timedelta` for accurate date math.
+
+- Lightweight conflict detection
+  - Scheduling no longer crashes on overlapping time windows.
+  - The system records conflict warnings when two scheduled tasks overlap:
+    - for the same pet
+    - or across different pets
+  - Warnings are available through `get_conflict_warnings()` and can be shown in CLI/UI.
+
+- Readability-focused scheduling refactor
+  - Daily schedule generation was split into smaller helper steps.
+  - This improves readability and maintainability while preserving scheduling behavior.
+
 ## Getting started
 
 ### Setup

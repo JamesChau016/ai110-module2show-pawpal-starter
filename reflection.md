@@ -40,6 +40,8 @@
 - Describe one tradeoff your scheduler makes.
 - Why is that tradeoff reasonable for this scenario?
 
+- Refactor the generate_schedule function, more helper functions means more readability, cleaner code, easier debugging. Trade-offs: little performance improvement
+- Since the algorithms for soring and iterating are already optimized, improved readability helps with debugging and reasoning.
 ---
 
 ## 3. AI Collaboration
