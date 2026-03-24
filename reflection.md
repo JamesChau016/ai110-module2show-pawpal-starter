@@ -23,6 +23,9 @@
 - Did your design change during implementation?
 - If yes, describe at least one change and why you made it.
 
+- Added relationships to my classes
+- Added Plan->tasks relationships for easier tracking in the future
+
 ---
 
 ## 2. Scheduling Logic and Tradeoffs
