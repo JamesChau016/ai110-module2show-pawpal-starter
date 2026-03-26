@@ -145,6 +145,21 @@ def test_mark_complete_daily_creates_next_occurrence() -> None:
 	assert next_task.due_date == date.today() + timedelta(days=1)
 
 
+def test_mark_complete_daily_uses_task_due_date_for_rollover() -> None:
+	task = Task(
+		task_id="t5",
+		description="Medication",
+		time_minutes=10,
+		frequency="daily",
+		due_date=date(2026, 3, 24),
+	)
+
+	next_task = task.mark_complete()
+
+	assert next_task is not None
+	assert next_task.due_date == date(2026, 3, 25)
+
+
 def test_plan_complete_task_weekly_adds_next_occurrence() -> None:
 	owner = Owner(owner_id="o1", name="Alex", daily_available_minutes=60)
 	pet = Pet(pet_id="p1", name="Milo", species="dog", age_years=3)

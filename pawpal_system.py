@@ -135,11 +135,12 @@ class Task:
 			return None
 
 		self.completed = True
+		base_date = self.due_date or date.today()
 		normalized_frequency = self.frequency.lower()
 		if normalized_frequency == "daily":
-			next_due_date = date.today() + timedelta(days=1)
+			next_due_date = base_date + timedelta(days=1)
 		elif normalized_frequency == "weekly":
-			next_due_date = date.today() + timedelta(weeks=1)
+			next_due_date = base_date + timedelta(weeks=1)
 		else:
 			return None
 
@@ -232,6 +233,7 @@ class Plan:
 		return [
 			{
 				"order": order,
+				"pet_name": pet.name,
 				"pet_id": pet.pet_id,
 				"task_id": task.task_id,
 				"description": task.description,
@@ -317,10 +319,12 @@ class Plan:
 				overlaps = max(left_start, right_start) < min(left_end, right_end)
 				if not overlaps:
 					continue
+				left_name = left_item.get("description") or left_item.get("task_id")
+				right_name = right_item.get("description") or right_item.get("task_id")
 				pet_relation = "same pet" if left_item.get("pet_id") == right_item.get("pet_id") else "different pets"
 				warnings.append(
-					f"Conflict: task {left_item.get('task_id')} ({left_item.get('pet_id')}) overlaps with "
-					f"task {right_item.get('task_id')} ({right_item.get('pet_id')}) [{pet_relation}]"
+					f"Conflict: '{left_name}' ({left_item.get('pet_name')}) overlaps with "
+					f"'{right_name}' ({right_item.get('pet_name')}) [{pet_relation}]"
 				)
 
 		return warnings

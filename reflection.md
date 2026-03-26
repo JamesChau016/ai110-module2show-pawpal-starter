@@ -54,11 +54,16 @@
 - How did you use AI tools during this project (for example: design brainstorming, debugging, refactoring)?
 - What kinds of prompts or questions were most helpful?
 
+- Brainstorming feautures, building new features, and debugging
+- The debugging prompts are the most helpful since they identify the bugs really fast and suggest viable solutions.
+
 **b. Judgment and verification**
 
 - Describe one moment where you did not accept an AI suggestion as-is.
 - How did you evaluate or verify what the AI suggested?
 
+- I didn't accept the way that the AI was displaying the tasks, it used task_id instead of clearer ways like name and the pet associated.
+- I use tests, read the codes, and testing the app features myself.
 ---
 
 ## 4. Testing and Verification
@@ -68,10 +73,16 @@
 - What behaviors did you test?
 - Why were these tests important?
 
+- Basically every logic, from sorting, filtering, to identifying conflicts and completing tasks.
+- The tests are important because it's the fastest and most reliable way to test the application before rolling out features.
+
 **b. Confidence**
 
 - How confident are you that your scheduler works correctly?
 - What edge cases would you test next if you had more time?
+
+- Mostly confident, there might be some edge test case that I couldn't think of.
+- I couldn't think of one right now, but maybe with more time to test out my application, I might come up with more edge cases.
 
 ---
 
@@ -81,10 +92,16 @@
 
 - What part of this project are you most satisfied with?
 
+- Able to build an app in a limited amount of time, testing out AI features.
+
 **b. What you would improve**
 
 - If you had another iteration, what would you improve or redesign?
 
+- Use another tech stack rather than just Streamlit and Python. Less writing, more coding.
+
 **c. Key takeaway**
 
 - What is one important thing you learned about designing systems or working with AI on this project?
+
+- AI makes mistakes, that's why testing is crucial when developing an application.
