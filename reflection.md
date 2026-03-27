@@ -105,3 +105,11 @@
 - What is one important thing you learned about designing systems or working with AI on this project?
 
 - AI makes mistakes, that's why testing is crucial when developing an application.
+
+## 6. Prompt comparison:
+
+Task: Fix bug daily tasks loaded from the database don't appear when new schedule is created.
+
+- Copilot (GPT 5.3 Codex): A more readable suggestion with clear code formatting, and a separate code section.
+
+- Claude (Sonnet 4.6): A more concise solution, pin pointing exactly where the bug is.

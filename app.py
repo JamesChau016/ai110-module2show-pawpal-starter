@@ -164,7 +164,7 @@ def build_schedule_rows(plan: Plan, pet: Pet, plan_date_value: date) -> tuple[li
     same_day_schedule = []
     for item in full_schedule:
         task_obj = next((t for t in pet.get_tasks() if t.task_id == item["task_id"]), None)
-        if task_obj and task_obj.due_date and task_obj.due_date != plan_date_value:
+        if task_obj and task_obj.due_date and task_obj.due_date > plan_date_value:
             continue
         same_day_schedule.append(item)
 
