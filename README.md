@@ -12,6 +12,7 @@ A smart Streamlit app that helps busy pet owners plan and manage pet care tasks 
 - **Smart Scheduling**: Generate daily plans based on priorities, duration, and owner availability
 - **Time Sorting**: Organize tasks by duration (shortest first or longest first)
 - **Conflict Detection**: Identify and warn about overlapping task time windows
+- **Energy Budget Warnings**: Track task energy cost and warn when morning/afternoon/evening usage exceeds preferred energy bank
 - **Task Filtering**: Filter tasks by completion status or pet name
 - **Recurring Tasks**: Automatically rollover daily and weekly tasks to the next occurrence
 - **Priority Levels**: Support for critical, high, medium, and low priority tasks
@@ -84,7 +85,19 @@ Tasks are ranked and selected by priority:
 - **Low** — Nice-to-have tasks
 - When time budget is tight, lower-priority tasks are skipped first
 
-### 6. Transparent Decision Logging
+### 6. Energy Cost + Preferred Energy Bank Warnings
+
+The scheduler now supports a simplified energy model to flag overloaded plans:
+
+- Each task includes an **energy cost** value
+- Owners can define preferred energy banks for **morning**, **afternoon**, and **evening**
+- Scheduled tasks are grouped by time-of-day bucket based on task start time
+- If scheduled energy usage in a bucket exceeds the preferred bank, PawPal+ records an energy warning
+- Energy warnings are shown alongside time-window conflict warnings in the app
+
+This helps owners avoid schedules that are technically possible by time, but too demanding in effort.
+
+### 7. Transparent Decision Logging
 
 Every schedule includes detailed explanations:
 
@@ -93,7 +106,7 @@ Every schedule includes detailed explanations:
 - See total scheduled time vs. available daily time
 - Review task selection counts at a glance
 
-### 7. Demo
+### 8. Demo
 
 [![Demo Screenshot 1](images/image1.png)](images/image1.png)
 [![Demo Screenshot 2](images/image2.png)](images/image2.png)
@@ -108,6 +121,7 @@ Current tests cover core scheduler behavior:
 - **Sorting & Prioritization**: Validates priority-first scheduling with chronological ordering when valid time windows are provided
 - **Recurring Tasks**: Confirms completing daily and weekly tasks creates the next occurrence with the correct due date
 - **Conflict Detection**: Verifies overlapping and duplicate time windows are flagged as warnings
+- **Energy Budget Warnings**: Confirms warnings are generated when scheduled energy usage exceeds preferred bank
 - **Filtering**: Checks completion-based filtering, pet-name filtering, and task completion state changes
 - **State Management**: Ensures task selection occurs within available time budget
 

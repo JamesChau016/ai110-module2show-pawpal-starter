@@ -169,6 +169,7 @@ class Task:
 	description: str
 	time_minutes: int
 	frequency: str
+	energy_cost: int = 1
 	completed: bool = False
 	priority: str = "medium"
 	preferred_start: str = ""
@@ -180,6 +181,12 @@ class Task:
 		if minutes <= 0:
 			raise ValueError("Task duration must be greater than 0")
 		self.time_minutes = minutes
+
+	def set_energy_cost(self, cost: int) -> None:
+		"""Set the task energy cost, validating it is positive."""
+		if cost <= 0:
+			raise ValueError("Task energy cost must be greater than 0")
+		self.energy_cost = cost
 
 	def set_priority(self, priority: str) -> None:
 		"""Set normalized task priority from the allowed priority levels."""
@@ -228,6 +235,8 @@ class Task:
 			return False
 		if self.time_minutes <= 0:
 			return False
+		if self.energy_cost <= 0:
+			return False
 		if self.frequency.lower() not in {"daily", "weekly", "monthly", "once"}:
 			return False
 		if self.preferred_start and self.preferred_end:
@@ -240,6 +249,7 @@ class Task:
 			"task_id": self.task_id,
 			"description": self.description,
 			"time_minutes": self.time_minutes,
+			"energy_cost": self.energy_cost,
 			"frequency": self.frequency,
 			"completed": self.completed,
 			"priority": self.priority,
@@ -278,6 +288,7 @@ class Task:
 			task_id=data["task_id"],
 			description=data["description"],
 			time_minutes=data["time_minutes"],
+			energy_cost=data.get("energy_cost", 1),
 			frequency=data["frequency"],
 			completed=data.get("completed", False),
 			priority=data.get("priority", "medium"),
@@ -333,27 +344,33 @@ class Plan:
 		return time_sort_pref in {"longest_first", "desc", "descending"}
 
 	def _build_schedule_items(self, pet: Pet, selected_tasks: list[Task]) -> list[dict[str, Any]]:
-		"""Build schedule rows from selected tasks, sorted by priority first then by time."""
+		"""Build schedule rows using chronological order when possible, else priority-first."""
 		priority_score = {"critical": 4, "high": 3, "medium": 2, "low": 1}
+		missing_time_sentinel = 24 * 60 + 1
+
+		def get_start_minutes(task: Task) -> int:
+			if not task.preferred_start or not task.preferred_end:
+				return missing_time_sentinel
+			try:
+				start_minutes = _hhmm_to_minutes(task.preferred_start)
+				end_minutes = _hhmm_to_minutes(task.preferred_end)
+			except ValueError:
+				return missing_time_sentinel
+			if start_minutes >= end_minutes:
+				return missing_time_sentinel
+			return start_minutes
+
+		all_have_valid_windows = bool(selected_tasks) and all(
+			get_start_minutes(task) != missing_time_sentinel for task in selected_tasks
+		)
 
 		def sort_key(index_and_task: tuple[int, Task]) -> tuple[int, int, int]:
 			index, task = index_and_task
-			# Get priority score (higher score = higher priority, so negate for sort)
 			priority_value = -priority_score.get(task.priority.lower(), 0)
-			
-			# Get start time for secondary sort
-			if task.preferred_start and task.preferred_end:
-				try:
-					start_minutes = _hhmm_to_minutes(task.preferred_start)
-					end_minutes = _hhmm_to_minutes(task.preferred_end)
-					if start_minutes >= end_minutes:
-						start_minutes = float('inf')
-				except ValueError:
-					start_minutes = float('inf')
-			else:
-				start_minutes = float('inf')
-			
-			return (priority_value, int(start_minutes), index)
+			start_minutes = get_start_minutes(task)
+			if all_have_valid_windows:
+				return (start_minutes, priority_value, index)
+			return (priority_value, start_minutes, index)
 
 		ordered_tasks = [task for _, task in sorted(enumerate(selected_tasks), key=sort_key)]
 
@@ -365,11 +382,72 @@ class Plan:
 				"task_id": task.task_id,
 				"description": task.description,
 				"time_minutes": task.time_minutes,
+				"energy_cost": task.energy_cost,
 				"preferred_start": task.preferred_start,
 				"preferred_end": task.preferred_end,
 			}
 			for order, task in enumerate(ordered_tasks, start=1)
 		]
+
+	def _time_of_day_bucket(self, start_time: str) -> str | None:
+		"""Map a start time to a day bucket used by owner energy preferences."""
+		if not start_time:
+			return None
+		try:
+			minutes = _hhmm_to_minutes(start_time)
+		except ValueError:
+			return None
+
+		if 5 * 60 <= minutes < 12 * 60:
+			return "morning"
+		if 12 * 60 <= minutes < 18 * 60:
+			return "afternoon"
+		if 18 * 60 <= minutes < 23 * 60:
+			return "evening"
+		return None
+
+	def _detect_energy_warnings(self, owner: Owner, scheduled_items: list[dict[str, Any]]) -> list[str]:
+		"""Warn when scheduled task energy cost exceeds owner preferred energy bank."""
+		bucket_usage: dict[str, int] = {"morning": 0, "afternoon": 0, "evening": 0}
+
+		for item in scheduled_items:
+			bucket = self._time_of_day_bucket(str(item.get("preferred_start", "")))
+			if bucket is None:
+				continue
+			cost = int(item.get("energy_cost", 1))
+			if cost <= 0:
+				continue
+			bucket_usage[bucket] += cost
+
+		warnings: list[str] = []
+		for bucket, usage in bucket_usage.items():
+			pref_key = f"preferred_energy_bank_{bucket}"
+			bank_text = owner.preferences.get(pref_key)
+			if bank_text is None:
+				continue
+			try:
+				bank = int(bank_text)
+			except ValueError:
+				continue
+			if bank < 0:
+				continue
+			if usage > bank:
+				warnings.append(
+					f"Energy warning: {bucket} usage ({usage}) exceeds preferred bank ({bank})"
+				)
+
+		return warnings
+
+	def calculate_warnings(
+		self,
+		owner: Owner,
+		scheduled_items: list[dict[str, Any]] | None = None,
+	) -> list[str]:
+		"""Return combined conflict and energy warnings for a schedule."""
+		items = scheduled_items if scheduled_items is not None else self.scheduled_items
+		warnings = self.detect_conflicts(items)
+		warnings.extend(self._detect_energy_warnings(owner, items))
+		return warnings
 
 	def _build_selected_reasons(self, selected_tasks: list[Task]) -> dict[str, str]:
 		"""Build reason text for all selected tasks."""
@@ -401,7 +479,7 @@ class Plan:
 		self.skipped_reasons = self._build_skipped_reasons(ranked_tasks, selected_tasks)
 		self.conflict_warnings = []
 
-		self.conflict_warnings = self.detect_conflicts()
+		self.conflict_warnings = self.calculate_warnings(owner, self.scheduled_items)
 
 		return list(self.scheduled_items)
 

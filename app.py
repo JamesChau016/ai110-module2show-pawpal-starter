@@ -28,6 +28,28 @@ pet_name = st.text_input("Pet name", value="Mochi")
 species = st.selectbox("Species", ["dog", "cat", "other"])
 age_years = st.number_input("Pet age (years)", min_value=0, max_value=40, value=2)
 daily_minutes = st.number_input("Daily available minutes", min_value=0, max_value=600, value=60)
+col_energy_1, col_energy_2, col_energy_3 = st.columns(3)
+with col_energy_1:
+    preferred_energy_bank_morning = st.number_input(
+        "Morning energy bank",
+        min_value=0,
+        max_value=100,
+        value=5,
+    )
+with col_energy_2:
+    preferred_energy_bank_afternoon = st.number_input(
+        "Afternoon energy bank",
+        min_value=0,
+        max_value=100,
+        value=5,
+    )
+with col_energy_3:
+    preferred_energy_bank_evening = st.number_input(
+        "Evening energy bank",
+        min_value=0,
+        max_value=100,
+        value=5,
+    )
 
 # Load from JSON if not already in session state
 if "owner" not in st.session_state:
@@ -68,6 +90,9 @@ pet = st.session_state.pet
 
 owner.name = owner_name
 owner.set_daily_available_minutes(int(daily_minutes))
+owner.set_preference("preferred_energy_bank_morning", str(int(preferred_energy_bank_morning)))
+owner.set_preference("preferred_energy_bank_afternoon", str(int(preferred_energy_bank_afternoon)))
+owner.set_preference("preferred_energy_bank_evening", str(int(preferred_energy_bank_evening)))
 pet.name = pet_name
 pet.species = species
 pet.age_years = int(age_years)
@@ -100,6 +125,8 @@ with col5:
 with col6:
     preferred_start = st.time_input("Start time", value=time(9, 0))
 
+energy_cost = st.number_input("Energy cost", min_value=1, max_value=20, value=2)
+
 if st.button("Add task"):
     try:
         st.session_state.task_counter += 1
@@ -109,10 +136,12 @@ if st.button("Add task"):
             description=task_title,
             time_minutes=int(duration),
             frequency=frequency,
+            energy_cost=int(energy_cost),
             priority=priority,
             due_date=task_due_date,
         )
         task.set_priority(priority)
+        task.set_energy_cost(int(energy_cost))
 
         # Use start + duration as the task window so conflict detection works without manual end input.
         start_dt = datetime.combine(task_due_date, preferred_start)
@@ -135,6 +164,7 @@ current_tasks = [
         "start": t.preferred_start,
         "duration_min": t.time_minutes,
         "priority": t.priority,
+        "energy_cost": t.energy_cost,
         "status": t.get_status_indicator(),
         "frequency": t.frequency,
         "completed": t.completed,
@@ -170,7 +200,7 @@ def build_schedule_rows(plan: Plan, pet: Pet, plan_date_value: date) -> tuple[li
 
     plan.scheduled_items = same_day_schedule
     plan.total_minutes = sum(item["time_minutes"] for item in same_day_schedule)
-    plan.conflict_warnings = plan.detect_conflicts(same_day_schedule)
+    plan.conflict_warnings = plan.calculate_warnings(owner, same_day_schedule)
 
     schedule_items: list[dict[str, str | int]] = []
     completion_rows: list[dict[str, str]] = []
@@ -194,6 +224,7 @@ def build_schedule_rows(plan: Plan, pet: Pet, plan_date_value: date) -> tuple[li
                 "end": scheduled_end,
                 "duration_min": item["time_minutes"],
                 "priority": priority_value,
+                "energy_cost": item.get("energy_cost", 1),
                 "status": task_obj.get_status_indicator() if task_obj else "🟡 Pending",
             }
         )

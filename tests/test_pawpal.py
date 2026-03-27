@@ -244,3 +244,74 @@ def test_detect_conflicts_warns_for_duplicate_time_windows() -> None:
 	assert len(warnings) == 1
 	assert "t1" in warnings[0]
 	assert "t2" in warnings[0]
+
+
+def test_task_energy_cost_must_be_positive() -> None:
+	task = Task(task_id="t-energy", description="Play", time_minutes=15, frequency="daily")
+
+	task.set_energy_cost(3)
+	assert task.energy_cost == 3
+
+	try:
+		task.set_energy_cost(0)
+		assert False, "Expected ValueError for non-positive energy cost"
+	except ValueError:
+		pass
+
+
+def test_task_serialization_round_trip_includes_energy_cost() -> None:
+	task = Task(
+		task_id="t-serialize",
+		description="Medication",
+		time_minutes=10,
+		frequency="daily",
+		energy_cost=4,
+	)
+
+	loaded = Task.from_dict(task.to_dict())
+
+	assert loaded.energy_cost == 4
+
+
+def test_generate_daily_schedule_warns_when_energy_bank_exceeded() -> None:
+	owner = Owner(
+		owner_id="o-energy",
+		name="Alex",
+		daily_available_minutes=120,
+		preferences={
+			"preferred_energy_bank_morning": "3",
+			"preferred_energy_bank_afternoon": "10",
+			"preferred_energy_bank_evening": "10",
+		},
+	)
+	pet = Pet(pet_id="p-energy", name="Milo", species="dog", age_years=3)
+	owner.add_pet(pet)
+
+	first = Task(
+		task_id="t1",
+		description="Walk",
+		time_minutes=20,
+		frequency="daily",
+		priority="high",
+		energy_cost=2,
+	)
+	first.set_time_window("09:00", "09:20")
+
+	second = Task(
+		task_id="t2",
+		description="Training",
+		time_minutes=20,
+		frequency="daily",
+		priority="medium",
+		energy_cost=3,
+	)
+	second.set_time_window("10:00", "10:20")
+
+	pet.add_task(first)
+	pet.add_task(second)
+
+	plan = Plan(plan_id="plan-energy", plan_date="2026-03-23", total_minutes=0)
+	plan.generate_daily_schedule(owner, pet)
+
+	warnings = plan.get_conflict_warnings()
+	assert any("Energy warning: morning usage (5) exceeds preferred bank (3)" in warning for warning in warnings)
