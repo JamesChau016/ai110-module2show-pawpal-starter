@@ -130,11 +130,12 @@ if st.button("Add task"):
 current_tasks = [
     {
         "pet": f"{pet.name} ({pet.species})",
-        "task": f"{get_priority_indicator(t.priority)} {t.description}",
+        "task": f"{get_priority_indicator(t.priority)} {t.get_task_type_emoji()} {t.description}",
         "date": t.due_date.isoformat() if t.due_date else "",
         "start": t.preferred_start,
         "duration_min": t.time_minutes,
         "priority": t.priority,
+        "status": t.get_status_indicator(),
         "frequency": t.frequency,
         "completed": t.completed,
     }
@@ -143,6 +144,7 @@ current_tasks = [
 
 if current_tasks:
     st.write("Current tasks:")
+    st.caption("Legend: priority ● (🔴 critical, 🟠 high, 🟡 medium, 🟢 low) | status (🟢 Completed, 🟡 Pending)")
     st.dataframe(current_tasks, use_container_width=True, hide_index=True)
 else:
     st.info("No tasks yet. Add one above.")
@@ -186,19 +188,20 @@ def build_schedule_rows(plan: Plan, pet: Pet, plan_date_value: date) -> tuple[li
         schedule_items.append(
             {
                 "pet": f"{pet.name} ({pet.species})",
-                "task": f"{get_priority_indicator(priority_value)} {item['description']}",
+                "task": f"{get_priority_indicator(priority_value)} {(task_obj.get_task_type_emoji() if task_obj else '📌')} {item['description']}",
                 "date": plan_date_value.isoformat(),
                 "start": scheduled_start,
                 "end": scheduled_end,
                 "duration_min": item["time_minutes"],
                 "priority": priority_value,
+                "status": task_obj.get_status_indicator() if task_obj else "🟡 Pending",
             }
         )
 
         completion_rows.append(
             {
                 "task_id": item["task_id"],
-                "task": item["description"],
+                "task": f"{(task_obj.get_task_type_emoji() if task_obj else '📌')} {item['description']}",
                 "start": start_text,
                 "duration": f"{item['time_minutes']} min",
             }
@@ -301,6 +304,7 @@ if st.session_state.schedule_generated:
         st.subheader("📋 Schedule Items")
         if displayed_schedule:
             st.info(f"Showing {len(displayed_schedule)} of {len(schedule_items)} tasks", icon="ℹ️")
+            st.caption("Task names include priority and task-type indicators for quick scanning.")
             st.dataframe(displayed_schedule, use_container_width=True, hide_index=True)
         else:
             st.warning("No tasks match the current filters.", icon="⚠️")
@@ -359,8 +363,9 @@ if st.session_state.schedule_generated:
                 if task_obj:
                     skipped_rows.append({
                         "pet": f"{pet.name} ({pet.species})",
-                        "task": f"{get_priority_indicator(task_obj.priority)} {task_obj.description}",
+                        "task": f"{get_priority_indicator(task_obj.priority)} {task_obj.get_task_type_emoji()} {task_obj.description}",
                         "priority": task_obj.priority,
+                        "status": "🔴 Skipped",
                         "reason": reason
                     })
                 else:
@@ -368,6 +373,7 @@ if st.session_state.schedule_generated:
                         "pet": f"{pet.name} ({pet.species})",
                         "task": f"⚪ {task_id}",
                         "priority": "unknown",
+                        "status": "🔴 Skipped",
                         "reason": reason
                     })
             st.dataframe(skipped_rows, use_container_width=True, hide_index=True)

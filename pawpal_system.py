@@ -248,6 +248,25 @@ class Task:
 			"due_date": self.due_date.isoformat() if self.due_date else None,
 		}
 
+	def get_task_type_emoji(self) -> str:
+		"""Return an emoji based on the task description category."""
+		description_text = self.description.lower()
+		if "walk" in description_text:
+			return "🐕"
+		if any(keyword in description_text for keyword in {"feed", "breakfast", "dinner", "meal"}):
+			return "🍽️"
+		if any(keyword in description_text for keyword in {"litter", "clean", "groom", "bath"}):
+			return "🧹"
+		if any(keyword in description_text for keyword in {"play", "toy", "enrichment"}):
+			return "🎾"
+		if any(keyword in description_text for keyword in {"med", "medicine", "pill", "vet"}):
+			return "💊"
+		return "📌"
+
+	def get_status_indicator(self) -> str:
+		"""Return a simple status label with a color indicator."""
+		return "🟢 Completed" if self.completed else "🟡 Pending"
+
 	@staticmethod
 	def from_dict(data: dict[str, Any]) -> Task:
 		"""Create a task from a dictionary."""
