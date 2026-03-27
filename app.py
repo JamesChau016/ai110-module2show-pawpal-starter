@@ -9,6 +9,17 @@ st.title("🐾 PawPal+")
 st.markdown("Welcome to the PawPal+ scheduler demo.")
 st.caption("Create tasks with date + start time + duration, then generate a conflict-aware schedule.")
 
+
+def get_priority_indicator(priority: str) -> str:
+    color_by_priority = {
+        "critical": "🔴",
+        "high": "🟠",
+        "medium": "🟡",
+        "low": "🟢",
+    }
+    normalized = (priority or "").lower()
+    return color_by_priority.get(normalized, "⚪")
+
 st.divider()
 
 st.subheader("Owner + Pet Setup")
@@ -18,21 +29,30 @@ species = st.selectbox("Species", ["dog", "cat", "other"])
 age_years = st.number_input("Pet age (years)", min_value=0, max_value=40, value=2)
 daily_minutes = st.number_input("Daily available minutes", min_value=0, max_value=600, value=60)
 
+# Load from JSON if not already in session state
 if "owner" not in st.session_state:
-    st.session_state.owner = Owner(
-        owner_id="owner-1",
-        name=owner_name,
-        daily_available_minutes=int(daily_minutes),
-    )
+    loaded_owner = Owner.load_from_json("data.json")
+    if loaded_owner:
+        st.session_state.owner = loaded_owner
+        st.session_state.pet = loaded_owner.pets[0] if loaded_owner.pets else None
+        st.success("Data loaded from data.json")
+    else:
+        st.session_state.owner = Owner(
+            owner_id="owner-1",
+            name=owner_name,
+            daily_available_minutes=int(daily_minutes),
+        )
+        st.session_state.pet = None
 
-if "pet" not in st.session_state:
+if "pet" not in st.session_state or st.session_state.pet is None:
     st.session_state.pet = Pet(
         pet_id="pet-1",
         name=pet_name,
         species=species,
         age_years=int(age_years),
     )
-    st.session_state.owner.add_pet(st.session_state.pet)
+    if st.session_state.pet not in st.session_state.owner.pets:
+        st.session_state.owner.add_pet(st.session_state.pet)
 
 if "task_counter" not in st.session_state:
     st.session_state.task_counter = 0
@@ -51,6 +71,13 @@ owner.set_daily_available_minutes(int(daily_minutes))
 pet.name = pet_name
 pet.species = species
 pet.age_years = int(age_years)
+
+# Add save button in the Owner + Pet Setup section
+col_save1, col_save2 = st.columns([3, 1])
+with col_save2:
+    if st.button("💾 Save Data", key="save_data_button", use_container_width=True):
+        owner.save_to_json("data.json")
+        st.success("✓ Data saved to data.json")
 
 st.divider()
 
@@ -103,7 +130,7 @@ if st.button("Add task"):
 current_tasks = [
     {
         "pet": f"{pet.name} ({pet.species})",
-        "task": t.description,
+        "task": f"{get_priority_indicator(t.priority)} {t.description}",
         "date": t.due_date.isoformat() if t.due_date else "",
         "start": t.preferred_start,
         "duration_min": t.time_minutes,
@@ -159,7 +186,7 @@ def build_schedule_rows(plan: Plan, pet: Pet, plan_date_value: date) -> tuple[li
         schedule_items.append(
             {
                 "pet": f"{pet.name} ({pet.species})",
-                "task": item["description"],
+                "task": f"{get_priority_indicator(priority_value)} {item['description']}",
                 "date": plan_date_value.isoformat(),
                 "start": scheduled_start,
                 "end": scheduled_end,
@@ -332,13 +359,15 @@ if st.session_state.schedule_generated:
                 if task_obj:
                     skipped_rows.append({
                         "pet": f"{pet.name} ({pet.species})",
-                        "task": task_obj.description,
+                        "task": f"{get_priority_indicator(task_obj.priority)} {task_obj.description}",
+                        "priority": task_obj.priority,
                         "reason": reason
                     })
                 else:
                     skipped_rows.append({
                         "pet": f"{pet.name} ({pet.species})",
-                        "task": task_id,
+                        "task": f"⚪ {task_id}",
+                        "priority": "unknown",
                         "reason": reason
                     })
             st.dataframe(skipped_rows, use_container_width=True, hide_index=True)

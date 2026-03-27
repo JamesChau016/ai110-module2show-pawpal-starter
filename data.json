@@ -1,0 +1,28 @@
+{
+  "owner_id": "owner-1",
+  "name": "Jordan",
+  "daily_available_minutes": 60,
+  "preferences": {},
+  "pets": [
+    {
+      "pet_id": "pet-1",
+      "name": "Mochi",
+      "species": "dog",
+      "age_years": 2,
+      "special_needs": [],
+      "tasks": [
+        {
+          "task_id": "task-1",
+          "description": "Morning walk",
+          "time_minutes": 20,
+          "frequency": "daily",
+          "completed": false,
+          "priority": "high",
+          "preferred_start": "09:00",
+          "preferred_end": "09:20",
+          "due_date": "2026-03-25"
+        }
+      ]
+    }
+  ]
+}

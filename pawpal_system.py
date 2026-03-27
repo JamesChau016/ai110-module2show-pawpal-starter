@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 from typing import Any
@@ -57,6 +58,46 @@ class Owner:
 			all_tasks.extend(pet.tasks)
 		return all_tasks
 
+	def to_dict(self) -> dict[str, Any]:
+		"""Convert owner and all data to a dictionary for JSON serialization."""
+		return {
+			"owner_id": self.owner_id,
+			"name": self.name,
+			"daily_available_minutes": self.daily_available_minutes,
+			"preferences": dict(self.preferences),
+			"pets": [pet.to_dict() for pet in self.pets],
+		}
+
+	def save_to_json(self, filepath: str = "data.json") -> None:
+		"""Save owner, pets, and tasks to a JSON file."""
+		data = self.to_dict()
+		with open(filepath, "w") as f:
+			json.dump(data, f, indent=2)
+
+	@staticmethod
+	def from_dict(data: dict[str, Any]) -> Owner:
+		"""Create an owner from a dictionary."""
+		owner = Owner(
+			owner_id=data["owner_id"],
+			name=data["name"],
+			daily_available_minutes=data["daily_available_minutes"],
+			preferences=dict(data.get("preferences", {})),
+		)
+		for pet_data in data.get("pets", []):
+			pet = Pet.from_dict(pet_data)
+			owner.add_pet(pet)
+		return owner
+
+	@staticmethod
+	def load_from_json(filepath: str = "data.json") -> Owner | None:
+		"""Load owner, pets, and tasks from a JSON file. Returns None if file doesn't exist."""
+		try:
+			with open(filepath, "r") as f:
+				data = json.load(f)
+			return Owner.from_dict(data)
+		except FileNotFoundError:
+			return None
+
 
 @dataclass
 class Pet:
@@ -94,6 +135,32 @@ class Pet:
 	def get_tasks(self) -> list[Task]:
 		"""Return a shallow copy of this pet's task list."""
 		return list(self.tasks)
+
+	def to_dict(self) -> dict[str, Any]:
+		"""Convert pet to a dictionary for JSON serialization."""
+		return {
+			"pet_id": self.pet_id,
+			"name": self.name,
+			"species": self.species,
+			"age_years": self.age_years,
+			"special_needs": list(self.special_needs),
+			"tasks": [task.to_dict() for task in self.tasks],
+		}
+
+	@staticmethod
+	def from_dict(data: dict[str, Any]) -> Pet:
+		"""Create a pet from a dictionary."""
+		pet = Pet(
+			pet_id=data["pet_id"],
+			name=data["name"],
+			species=data["species"],
+			age_years=data["age_years"],
+			special_needs=list(data.get("special_needs", [])),
+		)
+		for task_data in data.get("tasks", []):
+			task = Task.from_dict(task_data)
+			pet.add_task(task)
+		return pet
 
 
 @dataclass
@@ -167,6 +234,39 @@ class Task:
 			return _hhmm_to_minutes(self.preferred_start) < _hhmm_to_minutes(self.preferred_end)
 		return True
 
+	def to_dict(self) -> dict[str, Any]:
+		"""Convert task to a dictionary for JSON serialization."""
+		return {
+			"task_id": self.task_id,
+			"description": self.description,
+			"time_minutes": self.time_minutes,
+			"frequency": self.frequency,
+			"completed": self.completed,
+			"priority": self.priority,
+			"preferred_start": self.preferred_start,
+			"preferred_end": self.preferred_end,
+			"due_date": self.due_date.isoformat() if self.due_date else None,
+		}
+
+	@staticmethod
+	def from_dict(data: dict[str, Any]) -> Task:
+		"""Create a task from a dictionary."""
+		due_date = None
+		if data.get("due_date"):
+			due_date = date.fromisoformat(data["due_date"])
+
+		return Task(
+			task_id=data["task_id"],
+			description=data["description"],
+			time_minutes=data["time_minutes"],
+			frequency=data["frequency"],
+			completed=data.get("completed", False),
+			priority=data.get("priority", "medium"),
+			preferred_start=data.get("preferred_start", ""),
+			preferred_end=data.get("preferred_end", ""),
+			due_date=due_date,
+		)
+
 
 @dataclass
 class Plan:
@@ -214,19 +314,27 @@ class Plan:
 		return time_sort_pref in {"longest_first", "desc", "descending"}
 
 	def _build_schedule_items(self, pet: Pet, selected_tasks: list[Task]) -> list[dict[str, Any]]:
-		"""Build schedule rows from selected tasks."""
+		"""Build schedule rows from selected tasks, sorted by priority first then by time."""
+		priority_score = {"critical": 4, "high": 3, "medium": 2, "low": 1}
+
 		def sort_key(index_and_task: tuple[int, Task]) -> tuple[int, int, int]:
 			index, task = index_and_task
-			if not task.preferred_start or not task.preferred_end:
-				return (1, 0, index)
-			try:
-				start_minutes = _hhmm_to_minutes(task.preferred_start)
-				end_minutes = _hhmm_to_minutes(task.preferred_end)
-			except ValueError:
-				return (1, 0, index)
-			if start_minutes >= end_minutes:
-				return (1, 0, index)
-			return (0, start_minutes, index)
+			# Get priority score (higher score = higher priority, so negate for sort)
+			priority_value = -priority_score.get(task.priority.lower(), 0)
+			
+			# Get start time for secondary sort
+			if task.preferred_start and task.preferred_end:
+				try:
+					start_minutes = _hhmm_to_minutes(task.preferred_start)
+					end_minutes = _hhmm_to_minutes(task.preferred_end)
+					if start_minutes >= end_minutes:
+						start_minutes = float('inf')
+				except ValueError:
+					start_minutes = float('inf')
+			else:
+				start_minutes = float('inf')
+			
+			return (priority_value, int(start_minutes), index)
 
 		ordered_tasks = [task for _, task in sorted(enumerate(selected_tasks), key=sort_key)]
 
